@@ -1,0 +1,33 @@
+name: Telegram Birthday Sync
+
+on:
+  repository_dispatch:
+    types: [trigger-sync] # Тригер для зовнішнього виклику через cron-job.org
+  workflow_dispatch:       # Дозволяє запуск вручну через вкладку Actions у GitHub
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install telethon requests
+
+      - name: Run Telegram Sync
+        env:
+          TG_API_ID: ${{ secrets.TG_API_ID }}
+          TG_API_HASH: ${{ secrets.TG_API_HASH }}
+          TG_SESSION_STRING: ${{ secrets.TG_SESSION_STRING }}
+          WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
+          SECRET_TOKEN: ${{ secrets.SECRET_TOKEN }}
+        run: python telegram_birthday_sync.py
