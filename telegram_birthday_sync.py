@@ -10,7 +10,7 @@ API_ID = int(os.environ.get("TG_API_ID", "0"))
 API_HASH = os.environ.get("TG_API_HASH", "")
 SESSION_STRING = os.environ.get("TG_SESSION_STRING", "")
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "")
-SECRET_TOKEN = "MY_TELEGRAM_SYNC_SECRET_123"
+SECRET_TOKEN = os.environ.get("SECRET_TOKEN", "MY_TELEGRAM_SYNC_SECRET_123")
 
 async def main():
     if not API_ID or not API_HASH or not SESSION_STRING or not WEB_APP_URL:
@@ -49,7 +49,17 @@ async def main():
                 "birthday": bday_str
             })
 
-        print(f"Знайдено контактів з ДН: {len(contacts_to_send)}")
+        print(f"\n📊 Знайдено контактів з ДН: {len(contacts_to_send)}")
+        
+        # Деталізоване логування знайдених контактів у консоль
+        if contacts_to_send:
+            print("----------------------------------------------------------------------")
+            for idx, c in enumerate(contacts_to_send, start=1):
+                phone_display = f"+{c['phone']}" if c['phone'] else "без телефону"
+                nick_display = f"@{c['nickname']}" if c['nickname'] else "без нікнейму"
+                name_display = c['name'] if c['name'] else "Без імені"
+                print(f" {idx}. {name_display:<25} | Tel: {phone_display:<15} | Nick: {nick_display:<18} | BD: {c['birthday']}")
+            print("----------------------------------------------------------------------\n")
 
         payload = {
             "secret": SECRET_TOKEN,
@@ -57,6 +67,7 @@ async def main():
         }
 
         # Відправка даних у Google Apps Script Web App
+        print("Відправка даних у Google Apps Script...")
         response = requests.post(WEB_APP_URL, json=payload, headers={"Content-Type": "application/json"})
         print("Статус відповіді:", response.status_code)
         print("Відповідь Google Apps Script:", response.text)
