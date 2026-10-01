@@ -10,7 +10,7 @@ API_ID = int(os.environ.get("TG_API_ID", "0"))
 API_HASH = os.environ.get("TG_API_HASH", "")
 SESSION_STRING = os.environ.get("TG_SESSION_STRING", "")
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "")
-SECRET_TOKEN = os.environ.get("SECRET_TOKEN", "MY_TELEGRAM_SYNC_SECRET_123")
+SECRET_TOKEN = "MY_TELEGRAM_SYNC_SECRET_123"
 
 async def main():
     if not API_ID or not API_HASH or not SESSION_STRING or not WEB_APP_URL:
