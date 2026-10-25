@@ -43,10 +43,22 @@ async def main():
             year = str(bday.year) if getattr(bday, 'year', None) else ""
             bday_str = f"{day}.{month}.{year}".strip(".")
 
-            # Формуємо ім'я
-            first_name = user.first_name or ""
-            last_name = user.last_name or ""
-            full_name = f"{first_name} {last_name}".strip()
+            # Базове ім'я з об'єкта user
+            default_first = user.first_name or ""
+            default_last = user.last_name or ""
+            public_name = f"{default_first} {default_last}".strip()
+
+            # Отримуємо справжнє публічне ім'я через username (якщо він є)
+            if user.username:
+                try:
+                    entity = await client.get_entity(user.username)
+                    pub_first = getattr(entity, 'first_name', '') or ''
+                    pub_last = getattr(entity, 'last_name', '') or ''
+                    fetched_public_name = f"{pub_first} {pub_last}".strip()
+                    if fetched_public_name:
+                        public_name = fetched_public_name
+                except Exception as e:
+                    print(f"Не вдалося отримати публічний профіль для @{user.username}: {e}")
 
             # Інформація про фото профілю
             has_photo = bool(user.photo)
@@ -56,24 +68,24 @@ async def main():
                 "telegram_id": user.id,              # Унікальний незмінний ID
                 "phone": user.phone or "",           # Телефон
                 "nickname": user.username or "",     # Нікнейм (@handle)
-                "username": full_name,               # Ім'я профілю
-                "name": full_name,                   # ПІБ
+                "username": public_name,             # Публічне ім'я з профілю
+                "name": public_name,                 # Публічне ім'я (основне)
                 "birthday": bday_str,                # Дата народження
-                "has_photo": has_photo,              # Наявність фото (True/False)
-                "photo_id": photo_id                 # ID фото для завантаження в майбутньому
+                "has_photo": has_photo,              # Наявність фото
+                "photo_id": photo_id                 # ID фото
             })
 
         print(f"\n📊 Знайдено контактів з ДН: {len(contacts_to_send)}")
         
-        # Деталізоване логування розширених даних у консоль GitHub Actions
+        # Деталізоване логування в консоль GitHub Actions
         if contacts_to_send:
-            print("---------------------------------------------------------------------------------------------------------")
+            print("--------------------------------------------------------------------------------------------------------------------------------")
             for idx, c in enumerate(contacts_to_send, start=1):
                 phone_display = f"+{c['phone']}" if c['phone'] else "без телефону"
                 nick_display = f"@{c['nickname']}" if c['nickname'] else "без нікнейму"
                 photo_display = "📸 є" if c['has_photo'] else "—"
-                print(f" {idx}. ID: {c['telegram_id']} | {c['name']:<22} | Tel: {phone_display:<15} | Nick: {nick_display:<18} | Photo: {photo_display} | BD: {c['birthday']}")
-            print("---------------------------------------------------------------------------------------------------------\n")
+                print(f" {idx}. ID: {c['telegram_id']} | Публічне ім'я: {c['name']:<25} | Nick: {nick_display:<18} | Photo: {photo_display} | BD: {c['birthday']}")
+            print("--------------------------------------------------------------------------------------------------------------------------------\n")
 
         payload = {
             "secret": SECRET_TOKEN,
