@@ -42,12 +42,13 @@ async def main():
             year = str(bday.year) if getattr(bday, 'year', None) else ""
             bday_str = f"{day}.{month}.{year}".strip(".")
 
-            # За замовчуванням беремо ім'я з контакту
+            # 1. Ім'я з телефонної книги (як у вас збережено)
             local_first = user.first_name or ""
             local_last = user.last_name or ""
-            public_name = f"{local_first} {local_last}".strip()
+            contact_name = f"{local_first} {local_last}".strip()
 
-            # Якщо є username — робимо прямий запит ResolveUsernameRequest до сервера
+            # 2. Справжнє публічне ім'я з профілю (через ResolveUsernameRequest, якщо є username)
+            public_name = contact_name  # за замовчуванням беремо локальне
             if user.username:
                 try:
                     resolved = await client(ResolveUsernameRequest(username=user.username))
@@ -66,11 +67,11 @@ async def main():
             photo_id = str(user.photo.photo_id) if user.photo and hasattr(user.photo, 'photo_id') else ""
 
             contacts_to_send.append({
-                "telegram_id": user.id,              # Унікальний ID
+                "telegram_id": user.id,              # Унікальний незмінний ID
                 "phone": user.phone or "",           # Телефон
                 "nickname": user.username or "",     # Нікнейм (@handle)
-                "username": public_name,             # Публічне ім'я
-                "name": public_name,                 # Публічне ім'я
+                "public_name": public_name,          # Публічне ім'я з профілю
+                "name": contact_name,                # ПІБ із телефонної книги
                 "birthday": bday_str,                # Дата народження
                 "has_photo": has_photo,              # Наявність фото
                 "photo_id": photo_id                 # ID фото
@@ -78,20 +79,22 @@ async def main():
 
         print(f"\n📊 Знайдено контактів з ДН: {len(contacts_to_send)}")
         
+        # Деталізоване логування обох імен у консоль GitHub Actions
         if contacts_to_send:
-            print("--------------------------------------------------------------------------------------------------------------------------------")
+            print("--------------------------------------------------------------------------------------------------------------------------------------------------")
             for idx, c in enumerate(contacts_to_send, start=1):
                 phone_display = f"+{c['phone']}" if c['phone'] else "без телефону"
                 nick_display = f"@{c['nickname']}" if c['nickname'] else "без нікнейму"
                 photo_display = "📸 є" if c['has_photo'] else "—"
-                print(f" {idx}. ID: {c['telegram_id']} | Публічне ім'я: {c['name']:<25} | Nick: {nick_display:<18} | Photo: {photo_display} | BD: {c['birthday']}")
-            print("--------------------------------------------------------------------------------------------------------------------------------\n")
+                print(f" {idx}. ID: {c['telegram_id']} | Контакт (книга): {c['name']:<20} | Профіль (публічне): {c['public_name']:<20} | Nick: {nick_display:<15} | Photo: {photo_display} | BD: {c['birthday']}")
+            print("--------------------------------------------------------------------------------------------------------------------------------------------------\n")
 
         payload = {
             "secret": SECRET_TOKEN,
             "contacts": contacts_to_send
         }
 
+        # Відправка даних у Google Apps Script Web App
         print("Відправка даних у Google Apps Script...")
         response = requests.post(WEB_APP_URL, json=payload, headers={"Content-Type": "application/json"})
         print("Статус відповіді:", response.status_code)
