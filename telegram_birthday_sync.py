@@ -4,7 +4,7 @@ import asyncio
 import requests
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-from telethon.tl.functions.contacts import GetBirthdaysRequest, ResolveUsernameRequest
+from telethon.tl.functions.contacts import GetBirthdaysRequest
 
 # Зчитуємо налаштування зі змінних середовища (Secrets)
 API_ID = int(os.environ.get("TG_API_ID", "0"))
@@ -23,6 +23,7 @@ async def main():
     if not API_ID or not API_HASH or not SESSION_STRING or not WEB_APP_URL:
         raise ValueError("❌ Не всі обов'язкові змінні середовища (Secrets) налаштовані!")
 
+    # Ініціалізація клієнта через StringSession
     async with TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH) as client:
         print("Отримання контактів із днями народження від Telegram...")
         res = await client(GetBirthdaysRequest())
@@ -47,20 +48,21 @@ async def main():
             local_last = user.last_name or ""
             contact_name = f"{local_first} {local_last}".strip()
 
-            # 2. Справжнє публічне ім'я з профілю (через ResolveUsernameRequest, якщо є username)
+            # 2. Отримання публічного імені через client.get_entity() за нікнеймом (або ID як запасний варіант)
             public_name = contact_name  # за замовчуванням беремо локальне
-            if user.username:
+            
+            identifier = user.username if user.username else user.id
+            if identifier:
                 try:
-                    resolved = await client(ResolveUsernameRequest(username=user.username))
-                    if resolved.users:
-                        pub_user = resolved.users[0]
-                        pub_first = pub_user.first_name or ""
-                        pub_last = pub_user.last_name or ""
-                        fetched_name = f"{pub_first} {pub_last}".strip()
-                        if fetched_name:
-                            public_name = fetched_name
+                    # Використовуємо ваш метод get_entity для запиту сутності
+                    entity = await client.get_entity(identifier)
+                    pub_first = getattr(entity, 'first_name', '') or ''
+                    pub_last = getattr(entity, 'last_name', '') or ''
+                    fetched_name = f"{pub_first} {pub_last}".strip()
+                    if fetched_name:
+                        public_name = fetched_name
                 except Exception as e:
-                    print(f"Не вдалося отримати публічний профіль для @{user.username}: {e}")
+                    print(f"Не вдалося отримати сутність для {identifier}: {e}")
 
             # Інформація про фото профілю
             has_photo = bool(user.photo)
