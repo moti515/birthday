@@ -43,22 +43,21 @@ async def main():
             year = str(bday.year) if getattr(bday, 'year', None) else ""
             bday_str = f"{day}.{month}.{year}".strip(".")
 
-            # 1. Ім'я з телефонної книги (як у вас збережено)
+            # 1. Базове ім'я з об'єкта
             local_first = user.first_name or ""
             local_last = user.last_name or ""
             contact_name = f"{local_first} {local_last}".strip()
 
-            # 2. Отримання публічного імені через client.get_entity() за нікнеймом (або ID як запасний варіант)
-            public_name = contact_name  # за замовчуванням беремо локальне
-            
+            # 2. Використовуємо client.get_entity() за юзернеймом або ID (як ви запропонували)
+            public_name = contact_name
             identifier = user.username if user.username else user.id
+
             if identifier:
                 try:
-                    # Використовуємо ваш метод get_entity для запиту сутності
                     entity = await client.get_entity(identifier)
-                    pub_first = getattr(entity, 'first_name', '') or ''
-                    pub_last = getattr(entity, 'last_name', '') or ''
-                    fetched_name = f"{pub_first} {pub_last}".strip()
+                    ent_first = getattr(entity, 'first_name', '') or ''
+                    ent_last = getattr(entity, 'last_name', '') or ''
+                    fetched_name = f"{ent_first} {ent_last}".strip()
                     if fetched_name:
                         public_name = fetched_name
                 except Exception as e:
@@ -72,8 +71,8 @@ async def main():
                 "telegram_id": user.id,              # Унікальний незмінний ID
                 "phone": user.phone or "",           # Телефон
                 "nickname": user.username or "",     # Нікнейм (@handle)
-                "public_name": public_name,          # Публічне ім'я з профілю
-                "name": contact_name,                # ПІБ із телефонної книги
+                "public_name": public_name,          # Ім'я сутності
+                "name": contact_name,                # Ім'я з телефонної книги
                 "birthday": bday_str,                # Дата народження
                 "has_photo": has_photo,              # Наявність фото
                 "photo_id": photo_id                 # ID фото
@@ -81,14 +80,14 @@ async def main():
 
         print(f"\n📊 Знайдено контактів з ДН: {len(contacts_to_send)}")
         
-        # Деталізоване логування обох імен у консоль GitHub Actions
+        # Деталізоване логування в консоль GitHub Actions
         if contacts_to_send:
             print("--------------------------------------------------------------------------------------------------------------------------------------------------")
             for idx, c in enumerate(contacts_to_send, start=1):
                 phone_display = f"+{c['phone']}" if c['phone'] else "без телефону"
                 nick_display = f"@{c['nickname']}" if c['nickname'] else "без нікнейму"
                 photo_display = "📸 є" if c['has_photo'] else "—"
-                print(f" {idx}. ID: {c['telegram_id']} | Контакт (книга): {c['name']:<20} | Профіль (публічне): {c['public_name']:<20} | Nick: {nick_display:<15} | Photo: {photo_display} | BD: {c['birthday']}")
+                print(f" {idx}. ID: {c['telegram_id']} | Книга: {c['name']:<20} | Сутність: {c['public_name']:<20} | Nick: {nick_display:<15} | Photo: {photo_display} | BD: {c['birthday']}")
             print("--------------------------------------------------------------------------------------------------------------------------------------------------\n")
 
         payload = {
