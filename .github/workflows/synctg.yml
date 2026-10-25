@@ -28,6 +28,7 @@ jobs:
           TG_API_ID: ${{ secrets.TG_API_ID }}
           TG_API_HASH: ${{ secrets.TG_API_HASH }}
           TG_SESSION_STRING: ${{ secrets.TG_SESSION_STRING }}
+          TG_CLEAN_SESSION_STRING: ${{ secrets.TG_CLEAN_SESSION_STRING }}
           WEB_APP_URL: ${{ secrets.WEB_APP_URL }}
           SECRET_TOKEN: ${{ secrets.SECRET_TOKEN }}
         run: python telegram_birthday_sync.py
