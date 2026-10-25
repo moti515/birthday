@@ -43,12 +43,13 @@ async def main():
             year = str(bday.year) if getattr(bday, 'year', None) else ""
             bday_str = f"{day}.{month}.{year}".strip(".")
 
-            # Базове ім'я з об'єкта user
-            default_first = user.first_name or ""
-            default_last = user.last_name or ""
-            public_name = f"{default_first} {default_last}".strip()
+            # 1. Ім'я з телефонної книги (як у вас збережено)
+            contact_first = user.first_name or ""
+            contact_last = user.last_name or ""
+            contact_name = f"{contact_first} {contact_last}".strip()
 
-            # Отримуємо справжнє публічне ім'я через username (якщо він є)
+            # 2. Справжнє публічне ім'я з профілю (через username, якщо він є)
+            public_name = contact_name  # за замовчуванням беремо локальне
             if user.username:
                 try:
                     entity = await client.get_entity(user.username)
@@ -69,7 +70,7 @@ async def main():
                 "phone": user.phone or "",           # Телефон
                 "nickname": user.username or "",     # Нікнейм (@handle)
                 "username": public_name,             # Публічне ім'я з профілю
-                "name": public_name,                 # Публічне ім'я (основне)
+                "name": contact_name,                # ПІБ із телефонної книги
                 "birthday": bday_str,                # Дата народження
                 "has_photo": has_photo,              # Наявність фото
                 "photo_id": photo_id                 # ID фото
@@ -84,7 +85,7 @@ async def main():
                 phone_display = f"+{c['phone']}" if c['phone'] else "без телефону"
                 nick_display = f"@{c['nickname']}" if c['nickname'] else "без нікнейму"
                 photo_display = "📸 є" if c['has_photo'] else "—"
-                print(f" {idx}. ID: {c['telegram_id']} | Публічне ім'я: {c['name']:<25} | Nick: {nick_display:<18} | Photo: {photo_display} | BD: {c['birthday']}")
+                print(f" {idx}. ID: {c['telegram_id']} | Контакт: {c['name']:<20} | Профіль: {c['username']:<20} | Nick: {nick_display:<15} | Photo: {photo_display} | BD: {c['birthday']}")
             print("--------------------------------------------------------------------------------------------------------------------------------\n")
 
         payload = {
