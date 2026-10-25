@@ -71,7 +71,7 @@ async def main():
             for idx, c in enumerate(contacts_to_send, start=1):
                 phone_display = f"+{c['phone']}" if c['phone'] else "без телефону"
                 nick_display = f"@{c['nickname']}" if c['nickname'] else "без нікнейму"
-                photo_display = "📸 є" _ if c['has_photo'] else "—"
+                photo_display = "📸 є" if c['has_photo'] else "—"
                 print(f" {idx}. ID: {c['telegram_id']} | {c['name']:<22} | Tel: {phone_display:<15} | Nick: {nick_display:<18} | Photo: {photo_display} | BD: {c['birthday']}")
             print("---------------------------------------------------------------------------------------------------------\n")
 
