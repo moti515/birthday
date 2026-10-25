@@ -13,6 +13,12 @@ SESSION_STRING = os.environ.get("TG_SESSION_STRING", "")
 WEB_APP_URL = os.environ.get("WEB_APP_URL", "")
 SECRET_TOKEN = "MY_TELEGRAM_SYNC_SECRET_123"
 
+# Допоміжна функція для переведення bytes у шістнадцятковий рядок для JSON
+def json_serializer(obj):
+    if isinstance(obj, bytes):
+        return obj.hex()
+    raise TypeError(f"Тип {type(obj)} не серіалізується в JSON")
+
 async def main():
     if not API_ID or not API_HASH or not SESSION_STRING or not WEB_APP_URL:
         raise ValueError("❌ Не всі обов'язкові змінні середовища (Secrets) налаштовані!")
@@ -23,17 +29,15 @@ async def main():
         res = await client(GetBirthdaysRequest())
 
         # ==========================================
-        # 🔍 ВИВІД ПОВНОЇ СИРОЇ ВІДПОВІДІ ВІД TELEGRAM
+        # 🔍 ПОВНИЙ СИРИЙ JSON ВІД TELEGRAM
         # ==========================================
-        print("\n" + "="*40 + " СИРИЙ ОТРИМАНИЙ JSON ВІД TELEGRAM " + "="*40)
+        print("\n" + "="*40 + " ПОВНИЙ СИРИЙ JSON ВІД TELEGRAM " + "="*40)
         try:
-            # Телетон дозволяє конвертувати TelegramObject у звичайний словник Python
             raw_dict = res.to_dict()
-            print(json.dumps(raw_dict, indent=4, ensure_ascii=False))
+            print(json.dumps(raw_dict, indent=4, ensure_ascii=False, default=json_serializer))
         except Exception as e:
-            print(f"Не вдалося конвертувати у JSON напряму: {e}")
-            print(res) # Резервний вивід у стандартному форматі
-        print("="*115 + "\n")
+            print(f"Помилка конвертації: {e}")
+        print("="*111 + "\n")
 
         users_dict = {u.id: u for u in res.users}
         contacts_to_send = []
@@ -65,7 +69,7 @@ async def main():
 
         print(f"\n📊 Знайдено контактів з ДН: {len(contacts_to_send)}")
         
-        # Деталізоване логування знаведених контактів у консоль
+        # Деталізоване логування знайдених контактів у консоль
         if contacts_to_send:
             print("----------------------------------------------------------------------")
             for idx, c in enumerate(contacts_to_send, start=1):
