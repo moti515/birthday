@@ -4,7 +4,7 @@ import asyncio
 import requests
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-from telethon.tl.functions.contacts import GetBirthdaysRequest, ResolveUsernameRequest
+from telethon.tl.functions.contacts import GetBirthdaysRequest
 
 # Налаштування для основного акаунта (для днів народжень)
 API_ID = int(os.environ.get("TG_API_ID", "0"))
@@ -39,7 +39,7 @@ async def main():
         print("Сьогодні немає днів народжень у контактах.")
         return
 
-    # 2. Крок: Отримуємо чіткі публічні дані через СЛУЖБОВИЙ акаунт (без контактів)
+    # 2. Крок: Отримуємо чіткі публічні дані через СЛУЖБОВИЙ акаунт (тільки для тих, у кого є username)
     print("Підключення до службового 'чистого' акаунта для отримання публічних імен та фото...")
     async with TelegramClient(StringSession(CLEAN_SESSION_STRING), API_ID, API_HASH) as clean_client:
         for item in birthday_items:
@@ -54,20 +54,19 @@ async def main():
             year = str(bday.year) if getattr(bday, 'year', None) else ""
             bday_str = f"{day}.{month}.{year}".strip(".")
 
-            # За замовчуванням беремо локальні дані з основного акаунта
+            # Базові дані з основного акаунта
             local_first = user.first_name or ""
             local_last = user.last_name or ""
             contact_name = f"{local_first} {local_last}".strip()
+            
             public_name = contact_name
             has_photo = bool(user.photo)
             photo_id = str(user.photo.photo_id) if user.photo and hasattr(user.photo, 'photo_id') else ""
 
-            # Робимо запит через службовий чистий кліент за Telegram ID або username
-            identifier = user.username if user.username else user.id
-            if identifier:
+            # Якщо у користувача є username — робимо запит через чистий акаунт
+            if user.username:
                 try:
-                    # Чистий акаунт бачить реальний профіль без підмін з телефонної книги
-                    clean_entity = await clean_client.get_entity(identifier)
+                    clean_entity = await clean_client.get_entity(user.username)
                     
                     ent_first = getattr(clean_entity, 'first_name', '') or ''
                     ent_last = getattr(clean_entity, 'last_name', '') or ''
@@ -75,22 +74,23 @@ async def main():
                     if fetched_name:
                         public_name = fetched_name
 
-                    # Актуальна інформація про фото у реальному часі з сервера
                     has_photo = bool(clean_entity.photo)
                     photo_id = str(clean_entity.photo.photo_id) if clean_entity.photo and hasattr(clean_entity.photo, 'photo_id') else ""
 
                 except Exception as e:
-                    print(f"Не вдалося отримати публічну сутність через службовий акаунт для {identifier}: {e}")
+                    print(f"Не вдалося отримати публічну сутність для @{user.username}: {e}")
+            else:
+                print(f"Користувач ID {user.id} без username, використовуємо дані основного акаунта.")
 
             contacts_to_send.append({
-                "telegram_id": user.id,              # Унікальний ID
-                "phone": user.phone or "",           # Телефон
-                "nickname": user.username or "",     # Нікнейм (@handle)
-                "public_name": public_name,          # Чисте публічне ім'я
-                "name": contact_name,                # Ім'я з вашої записної книги
-                "birthday": bday_str,                # Дата народження
-                "has_photo": has_photo,              # Актуальний статус фото
-                "photo_id": photo_id                 # Актуальний ID фото
+                "telegram_id": user.id,
+                "phone": user.phone or "",
+                "nickname": user.username or "",
+                "public_name": public_name,
+                "name": contact_name,
+                "birthday": bday_str,
+                "has_photo": has_photo,
+                "photo_id": photo_id
             })
 
     print(f"\n📊 Оброблено контактів з ДН: {len(contacts_to_send)}")
