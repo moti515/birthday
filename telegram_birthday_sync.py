@@ -1,4 +1,5 @@
 import os
+import json
 import asyncio
 import requests
 from telethon import TelegramClient
@@ -18,8 +19,21 @@ async def main():
 
     # Ініціалізація клієнта через StringSession для безінтерактивного запуску
     async with TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH) as client:
-        print("Отримання контактів із днями народження...")
+        print("Отримання контактів із днями народження від Telegram...")
         res = await client(GetBirthdaysRequest())
+
+        # ==========================================
+        # 🔍 ВИВІД ПОВНОЇ СИРОЇ ВІДПОВІДІ ВІД TELEGRAM
+        # ==========================================
+        print("\n" + "="*40 + " СИРИЙ ОТРИМАНИЙ JSON ВІД TELEGRAM " + "="*40)
+        try:
+            # Телетон дозволяє конвертувати TelegramObject у звичайний словник Python
+            raw_dict = res.to_dict()
+            print(json.dumps(raw_dict, indent=4, ensure_ascii=False))
+        except Exception as e:
+            print(f"Не вдалося конвертувати у JSON напряму: {e}")
+            print(res) # Резервний вивід у стандартному форматі
+        print("="*115 + "\n")
 
         users_dict = {u.id: u for u in res.users}
         contacts_to_send = []
@@ -51,7 +65,7 @@ async def main():
 
         print(f"\n📊 Знайдено контактів з ДН: {len(contacts_to_send)}")
         
-        # Деталізоване логування знайдених контактів у консоль
+        # Деталізоване логування знаведених контактів у консоль
         if contacts_to_send:
             print("----------------------------------------------------------------------")
             for idx, c in enumerate(contacts_to_send, start=1):
