@@ -28,17 +28,6 @@ async def main():
         print("Отримання контактів із днями народження від Telegram...")
         res = await client(GetBirthdaysRequest())
 
-        # ==========================================
-        # 🔍 ПОВНИЙ СИРИЙ JSON ВІД TELEGRAM
-        # ==========================================
-        print("\n" + "="*40 + " ПОВНИЙ СИРИЙ JSON ВІД TELEGRAM " + "="*40)
-        try:
-            raw_dict = res.to_dict()
-            print(json.dumps(raw_dict, indent=4, ensure_ascii=False, default=json_serializer))
-        except Exception as e:
-            print(f"Помилка конвертації: {e}")
-        print("="*111 + "\n")
-
         users_dict = {u.id: u for u in res.users}
         contacts_to_send = []
 
@@ -59,25 +48,32 @@ async def main():
             last_name = user.last_name or ""
             full_name = f"{first_name} {last_name}".strip()
 
+            # Інформація про фото профілю
+            has_photo = bool(user.photo)
+            photo_id = str(user.photo.photo_id) if user.photo and hasattr(user.photo, 'photo_id') else ""
+
             contacts_to_send.append({
-                "phone": user.phone or "",
-                "nickname": user.username or "",  # Нікнейм (@handle)
-                "username": full_name,            # Ім'я контакту в TG
-                "name": full_name,                # ПІБ
-                "birthday": bday_str
+                "telegram_id": user.id,              # Унікальний незмінний ID
+                "phone": user.phone or "",           # Телефон
+                "nickname": user.username or "",     # Нікнейм (@handle)
+                "username": full_name,               # Ім'я профілю
+                "name": full_name,                   # ПІБ
+                "birthday": bday_str,                # Дата народження
+                "has_photo": has_photo,              # Наявність фото (True/False)
+                "photo_id": photo_id                 # ID фото для завантаження в майбутньому
             })
 
         print(f"\n📊 Знайдено контактів з ДН: {len(contacts_to_send)}")
         
-        # Деталізоване логування знайдених контактів у консоль
+        # Деталізоване логування розширених даних у консоль GitHub Actions
         if contacts_to_send:
-            print("----------------------------------------------------------------------")
+            print("---------------------------------------------------------------------------------------------------------")
             for idx, c in enumerate(contacts_to_send, start=1):
                 phone_display = f"+{c['phone']}" if c['phone'] else "без телефону"
                 nick_display = f"@{c['nickname']}" if c['nickname'] else "без нікнейму"
-                name_display = c['name'] if c['name'] else "Без імені"
-                print(f" {idx}. {name_display:<25} | Tel: {phone_display:<15} | Nick: {nick_display:<18} | BD: {c['birthday']}")
-            print("----------------------------------------------------------------------\n")
+                photo_display = "📸 є" _ if c['has_photo'] else "—"
+                print(f" {idx}. ID: {c['telegram_id']} | {c['name']:<22} | Tel: {phone_display:<15} | Nick: {nick_display:<18} | Photo: {photo_display} | BD: {c['birthday']}")
+            print("---------------------------------------------------------------------------------------------------------\n")
 
         payload = {
             "secret": SECRET_TOKEN,
