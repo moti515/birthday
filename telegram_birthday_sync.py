@@ -4,7 +4,7 @@ import asyncio
 import requests
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-from telethon.tl.functions.contacts import GetBirthdaysRequest
+from telethon.tl.functions.contacts import GetBirthdaysRequest, ResolveUsernameRequest
 
 # Зчитуємо налаштування зі змінних середовища (Secrets)
 API_ID = int(os.environ.get("TG_API_ID", "0"))
@@ -23,7 +23,6 @@ async def main():
     if not API_ID or not API_HASH or not SESSION_STRING or not WEB_APP_URL:
         raise ValueError("❌ Не всі обов'язкові змінні середовища (Secrets) налаштовані!")
 
-    # Ініціалізація клієнта через StringSession для безінтерактивного запуску
     async with TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH) as client:
         print("Отримання контактів із днями народження від Telegram...")
         res = await client(GetBirthdaysRequest())
@@ -43,21 +42,22 @@ async def main():
             year = str(bday.year) if getattr(bday, 'year', None) else ""
             bday_str = f"{day}.{month}.{year}".strip(".")
 
-            # 1. Ім'я з телефонної книги (як у вас збережено)
-            contact_first = user.first_name or ""
-            contact_last = user.last_name or ""
-            contact_name = f"{contact_first} {contact_last}".strip()
+            # За замовчуванням беремо ім'я з контакту
+            local_first = user.first_name or ""
+            local_last = user.last_name or ""
+            public_name = f"{local_first} {local_last}".strip()
 
-            # 2. Справжнє публічне ім'я з профілю (через username, якщо він є)
-            public_name = contact_name  # за замовчуванням беремо локальне
+            # Якщо є username — робимо прямий запит ResolveUsernameRequest до сервера
             if user.username:
                 try:
-                    entity = await client.get_entity(user.username)
-                    pub_first = getattr(entity, 'first_name', '') or ''
-                    pub_last = getattr(entity, 'last_name', '') or ''
-                    fetched_public_name = f"{pub_first} {pub_last}".strip()
-                    if fetched_public_name:
-                        public_name = fetched_public_name
+                    resolved = await client(ResolveUsernameRequest(username=user.username))
+                    if resolved.users:
+                        pub_user = resolved.users[0]
+                        pub_first = pub_user.first_name or ""
+                        pub_last = pub_user.last_name or ""
+                        fetched_name = f"{pub_first} {pub_last}".strip()
+                        if fetched_name:
+                            public_name = fetched_name
                 except Exception as e:
                     print(f"Не вдалося отримати публічний профіль для @{user.username}: {e}")
 
@@ -66,11 +66,11 @@ async def main():
             photo_id = str(user.photo.photo_id) if user.photo and hasattr(user.photo, 'photo_id') else ""
 
             contacts_to_send.append({
-                "telegram_id": user.id,              # Унікальний незмінний ID
+                "telegram_id": user.id,              # Унікальний ID
                 "phone": user.phone or "",           # Телефон
                 "nickname": user.username or "",     # Нікнейм (@handle)
-                "username": public_name,             # Публічне ім'я з профілю
-                "name": contact_name,                # ПІБ із телефонної книги
+                "username": public_name,             # Публічне ім'я
+                "name": public_name,                 # Публічне ім'я
                 "birthday": bday_str,                # Дата народження
                 "has_photo": has_photo,              # Наявність фото
                 "photo_id": photo_id                 # ID фото
@@ -78,14 +78,13 @@ async def main():
 
         print(f"\n📊 Знайдено контактів з ДН: {len(contacts_to_send)}")
         
-        # Деталізоване логування в консоль GitHub Actions
         if contacts_to_send:
             print("--------------------------------------------------------------------------------------------------------------------------------")
             for idx, c in enumerate(contacts_to_send, start=1):
                 phone_display = f"+{c['phone']}" if c['phone'] else "без телефону"
                 nick_display = f"@{c['nickname']}" if c['nickname'] else "без нікнейму"
                 photo_display = "📸 є" if c['has_photo'] else "—"
-                print(f" {idx}. ID: {c['telegram_id']} | Контакт: {c['name']:<20} | Профіль: {c['username']:<20} | Nick: {nick_display:<15} | Photo: {photo_display} | BD: {c['birthday']}")
+                print(f" {idx}. ID: {c['telegram_id']} | Публічне ім'я: {c['name']:<25} | Nick: {nick_display:<18} | Photo: {photo_display} | BD: {c['birthday']}")
             print("--------------------------------------------------------------------------------------------------------------------------------\n")
 
         payload = {
@@ -93,7 +92,6 @@ async def main():
             "contacts": contacts_to_send
         }
 
-        # Відправка даних у Google Apps Script Web App
         print("Відправка даних у Google Apps Script...")
         response = requests.post(WEB_APP_URL, json=payload, headers={"Content-Type": "application/json"})
         print("Статус відповіді:", response.status_code)
